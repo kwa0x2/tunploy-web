@@ -1,0 +1,20 @@
+---
+title: Two-factor authentication
+description: Ask for a code from an authenticator app when signing in.
+---
+
+Under **Settings → Security**, turn on two-factor authentication and scan the QR code with an authenticator app (Google Authenticator, 1Password, Aegis, Bitwarden and so on). From then on, signing in asks for the 6-digit code from the app as well.
+
+Turning it on signs out every other device.
+
+<PanelShot name="security" alt="Settings → Security with two-factor authentication" />
+
+## Lost your phone?
+
+If you lose the device with the authenticator app, turn two-factor sign-in off from the server:
+
+```sh
+tunploy admin disable-2fa --email you@example.com
+```
+
+See [Manage the admin account](/docs/maintenance/server-commands#manage-the-admin-account).

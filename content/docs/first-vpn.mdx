@@ -1,0 +1,44 @@
+---
+title: Create your first VPN
+description: Sign in, deploy a WireGuard server and connect your first device.
+---
+
+## Sign in
+
+Open `http://YOUR_SERVER_IP:3000` and sign in with the account you created during the install. The panel is public, but there is no sign-up page: only the account made on the server can get in.
+
+<Callout type="warn" title="Plain HTTP at first">
+  Out of the box the panel serves plain HTTP, so your password and session travel unencrypted. Settings shows a warning while that is the case. Fix it with one of the options under [HTTPS](/docs/guides/https).
+</Callout>
+
+## Deploy a server and connect
+
+<Steps>
+<Step>
+Go to **Servers → New server**, give it a name and press **Deploy**.
+</Step>
+<Step>
+Open the server and choose **Add peer**. Scan the QR code with the WireGuard app on your phone, or download the `.conf` file for a laptop.
+</Step>
+<Step>
+Connect. The peer shows up as **Online** within a few seconds.
+</Step>
+</Steps>
+
+<PanelShot name="qr" alt="A device's QR code, ready to scan with the WireGuard app" />
+
+The endpoint that clients connect to comes from **Settings → General**. If the install script detected the wrong address, change it there before creating servers. Existing servers keep their own endpoint, which you can change under each server's settings.
+
+## Manage devices
+
+Each server's page lists its peers with their address, status, location and traffic this month.
+
+<PanelShot name="server-detail" alt="A server's peers with their status, location and traffic" />
+
+From there you can turn a device off, rename it, show its QR code again, see its daily and monthly usage, or give it a **monthly data limit** or an **expiry date**. A device that reaches its limit or its expiry date is blocked until the next month or until you change it, and the [activity log](#activity) records it.
+
+## Activity
+
+**Activity** shows who connected from where, and what changed on the panel, for the last 90 days. Filter by connections, changes or sign-ins.
+
+<PanelShot name="activity" alt="The activity log with connections, changes and sign-ins" />

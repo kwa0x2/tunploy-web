@@ -1,0 +1,42 @@
+---
+title: Troubleshooting
+description: Fixes for the problems people run into most.
+---
+
+## The panel does not come up
+
+Check its logs with `tunploy logs` (or `docker logs tunploy`). `permission denied` on `docker.sock` means the socket is not mounted, or a rootless Docker is in use.
+
+## A server shows as stopped or keeps restarting
+
+Open the server and choose **View logs**. `RTNETLINK answers: Operation not supported` means the host kernel has no WireGuard module. Run `sudo modprobe wireguard`; if that fails, the VPS type (often OpenVZ or LXC) does not support WireGuard.
+
+## A node stays offline
+
+The card on the **Nodes** page shows the SSH error. Check that:
+
+- the panel can reach the node's SSH port (`nc -vz NODE_IP 22` from the panel's server),
+- the user can still run `sudo` without a password,
+- the panel's key is still in `~/.ssh/authorized_keys`.
+
+`the server's host key changed` means the machine was reinstalled or something is in between; if you reinstalled it, remove the node and add it again.
+
+## The peer never comes online
+
+The UDP port is almost always blocked by the provider's firewall. Also check that the endpoint in the client config is the server's public address and not `localhost` or a private IP.
+
+## Connected, but no internet
+
+Check that the server itself has outbound connectivity, and that no host firewall rule drops forwarded traffic.
+
+## HTTPS does not work
+
+**Settings → Domain** shows why the last certificate request failed. Check that the domain's A record points to the server (`dig +short panel.example.com`) and that TCP 80 and 443 are open in the provider's firewall.
+
+## Forgot the admin password
+
+Run this on the server. Servers and peers are not affected.
+
+```sh
+tunploy admin reset-password --email you@example.com
+```

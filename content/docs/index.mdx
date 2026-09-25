@@ -1,0 +1,36 @@
+---
+title: Introduction
+description: Tunploy is a self-hosted control panel for your own WireGuard VPN servers.
+---
+
+Tunploy runs as a single Docker container on your Linux server. From its web panel you spin up WireGuard servers, add devices, scan their QR codes, and see who is connected and how much they use, without ever touching a WireGuard config by hand.
+
+<PanelShot name="overview" alt="The Tunploy overview with servers, devices online and this month's traffic" />
+
+## Features
+
+- **One-click VPN servers.** Each WireGuard server runs in its own container, on its own UDP port, with its own DNS, MTU, keepalive and allowed IPs.
+- **More machines from one panel.** Add another VPS with its SSH login and run VPN servers there too; nothing is installed on it but Docker.
+- **Devices.** Add a device and scan its QR code with the WireGuard app, or download its `.conf`. Turn devices off, give them a monthly data limit or an expiry date.
+- **Live status and usage.** See which devices are online, from which country, and their daily and monthly traffic.
+- **Activity log.** Connections, changes and sign-ins, in one place.
+- **HTTPS from the panel.** Point a domain at the server and the panel gets its own Let's Encrypt certificate.
+- **Two-factor sign-in** with any authenticator app.
+- **Email notifications** when servers go down, devices hit their limit, sign-ins fail and more.
+- **Backups** to your computer or any S3-compatible storage, on a schedule, optionally encrypted.
+- **An HTTP API** with scoped keys, so a billing backend, bot or script can create and manage devices.
+- **In-panel updates** that roll back on their own if the new version doesn't start.
+- **A `tunploy` command** on the server for resetting the admin password, restoring backups, reading logs and uninstalling.
+
+## How it fits together
+
+Tunploy is one container, the **panel**, with its database in `/var/lib/tunploy`. For every WireGuard server you create, the panel starts one more container on the same machine or on a [node](/docs/guides/nodes) it reaches over SSH. VPN containers keep running while the panel restarts or [updates](/docs/maintenance/updating), so connected devices stay connected.
+
+## Next steps
+
+<Cards>
+  <Card title="Install Tunploy" href="/docs/installation" description="One command on a fresh Linux server." />
+  <Card title="Create your first VPN" href="/docs/first-vpn" description="Deploy a server and connect a phone." />
+  <Card title="Give the panel HTTPS" href="/docs/guides/https" description="Your own domain with a Let's Encrypt certificate." />
+  <Card title="Use the API" href="/docs/api" description="Create and manage devices from your own code." />
+</Cards>

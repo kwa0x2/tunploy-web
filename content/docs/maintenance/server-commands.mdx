@@ -1,0 +1,37 @@
+---
+title: Server commands
+description: The tunploy command on the server, for what can't be done from the panel.
+---
+
+The install script puts a `tunploy` command on the server, for what can't be done from the panel:
+
+| Command | What it does |
+| --- | --- |
+| `tunploy admin` | Create the admin account, reset its password or turn off two-factor sign-in (see [below](#manage-the-admin-account)). |
+| `tunploy backup` | List the backups in S3 and restore one (see [Restoring from the command line](/docs/guides/backups#restoring-from-the-command-line)). |
+| `tunploy logs` | Follow the panel's logs. Takes `docker logs` flags, such as `--since 1h`. |
+| `tunploy restart` | Restart the panel. VPN servers keep running. |
+| `tunploy version` | Print the version the panel runs. |
+| `tunploy update [version]` | Update to the newest release, or to the given one, by running the install script again. |
+| `tunploy uninstall` | Remove Tunploy (see [Uninstall](/docs/maintenance/uninstall)). |
+
+The commands run in the panel's container, so they always match the version it runs. They need root and ask for `sudo` on their own, unless you are in the `docker` group.
+
+## Manage the admin account
+
+These ask for the password without echoing it:
+
+```sh
+# Create the admin, if the install could not ask (for example, no terminal)
+tunploy admin create
+
+# Forgot the password: set a new one and sign out every session
+tunploy admin reset-password --email you@example.com
+
+# Lost the phone with the authenticator app: turn two-factor sign-in off
+tunploy admin disable-2fa --email you@example.com
+```
+
+With Docker Compose there is no `tunploy` command on the server; run the same commands in the container instead, as in `docker exec -it tunploy tunploy admin create`. Replace `tunploy` after `-it` with the container's name if it differs, as under Dokploy: `docker ps --filter name=tunploy` shows it, and so does the panel wherever it prints such a command.
+
+Once signed in, you can also change the password under **Settings → Security**.

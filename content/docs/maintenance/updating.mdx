@@ -1,0 +1,31 @@
+---
+title: Updating
+description: Update Tunploy from the panel, with an automatic rollback if the new version fails.
+---
+
+The panel checks GitHub for a new Tunploy release twice a day. When there is one, an **Update to x.y.z** button appears at the top of every page, and **Settings → Updates** shows the version you run, the latest release with a link to its notes, and a **Check now** button.
+
+## What happens when you update
+
+**Update now** downloads the new image and restarts the panel on it, which takes about a minute:
+
+<Steps>
+<Step>The panel pulls the new image, so a failed download changes nothing.</Step>
+<Step>It starts a short-lived `tunploy-updater` container from the new image, because a container can't replace itself.</Step>
+<Step>The updater stops the panel, copies the database aside, and starts a new panel container with the same ports, volumes and settings.</Step>
+<Step>Once the new panel answers, the updater removes the old container and the copy of the database. If it doesn't answer within 90 seconds, the updater removes it, puts the database back, and starts the old panel again. **Settings → Updates** then shows why.</Step>
+</Steps>
+
+VPN servers run in their own containers and keep running throughout, so connected devices stay connected. You stay signed in. The activity log records every update and every failed one.
+
+## Other ways to update
+
+The button only works for a panel started by the install script. A panel started with Docker Compose shows how to update it instead:
+
+```sh
+docker compose pull && docker compose up -d
+```
+
+Running `tunploy update` or the install command again also updates.
+
+Set `TUNPLOY_UPDATE_CHECK=false` to stop the panel from contacting GitHub on its own; **Check now** still asks when you press it.

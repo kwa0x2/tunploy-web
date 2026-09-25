@@ -5,7 +5,8 @@ export const tagline = 'A self-hosted control panel for your own WireGuard VPN s
 
 // Where this site is served from. Set NEXT_PUBLIC_SITE_URL at build time for correct
 // canonical links and social previews.
-export const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+// An unset Docker build arg arrives as an empty string, so treat empty as missing.
+export const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 export const repoUrl = 'https://github.com/kwa0x2/tunploy';
 export const releasesUrl = `${repoUrl}/releases`;

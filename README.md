@@ -24,6 +24,23 @@ NEXT_PUBLIC_SITE_URL=https://tunploy.example.com npm run build
 
 The site is written to `out/` as plain HTML, CSS and JS, so any static host works: GitHub Pages, Cloudflare Pages, Netlify, Vercel, or nginx. `NEXT_PUBLIC_SITE_URL` is used for canonical links and social previews.
 
+## Deploy with Dokploy
+
+The repository has a `Dockerfile` that builds the site and serves it with nginx on port 80.
+
+1. In Dokploy, create an **Application** and connect this GitHub repository, branch `main`.
+2. Set **Build Type** to **Dockerfile** (path `Dockerfile`).
+3. On the **Environment** tab, add `NEXT_PUBLIC_SITE_URL=https://your-domain` as a build-time argument (build args). The Dockerfile reads it as `ARG`; without it the site builds with `localhost` in its social previews.
+4. Under **Domains**, add your domain with **Container Port** `80` and HTTPS on.
+5. Press **Deploy**. With auto-deploy on, every push to `main` redeploys.
+
+Any other Docker host works the same way:
+
+```sh
+docker build --build-arg NEXT_PUBLIC_SITE_URL=https://tunploy.example.com -t tunploy-web .
+docker run -d -p 8080:80 tunploy-web
+```
+
 ## Layout
 
 | Path | What it is |

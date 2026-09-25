@@ -1,0 +1,20 @@
+---
+title: Development
+description: Build and run Tunploy from source.
+---
+
+Needs Go, Node.js and a running Docker daemon.
+
+```sh
+git clone https://github.com/kwa0x2/tunploy
+cd tunploy
+
+make admin  # create the admin account in ./data, once
+make dev    # API and Vite with hot reload on http://localhost:5173
+make test   # Go tests and a TypeScript type check
+make lint   # go vet, gofmt and oxlint
+```
+
+Run `make help` for the rest.
+
+Tunploy is released under the [MIT License](https://github.com/kwa0x2/tunploy/blob/main/LICENSE). Issues and pull requests are welcome on [GitHub](https://github.com/kwa0x2/tunploy).

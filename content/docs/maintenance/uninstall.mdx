@@ -1,0 +1,24 @@
+---
+title: Uninstall
+description: Remove Tunploy and, if you want, its data.
+---
+
+```sh
+tunploy uninstall
+```
+
+or, if the `tunploy` command is missing:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/kwa0x2/tunploy/main/install.sh | sudo sh -s uninstall
+```
+
+This removes the panel container, every VPN server it runs, and their images. Connected devices lose their connection.
+
+It asks before deleting `/var/lib/tunploy`, which holds every server, device key, backup and the admin account. Keep that directory and a later install picks everything up again. Docker itself stays installed.
+
+Add `--purge` to delete `/var/lib/tunploy` without asking, and `--yes` to skip the confirmation when there is no terminal:
+
+```sh
+tunploy uninstall --yes --purge
+```

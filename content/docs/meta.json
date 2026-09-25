@@ -1,0 +1,17 @@
+{
+  "title": "Tunploy",
+  "pages": [
+    "---Getting started---",
+    "index",
+    "installation",
+    "first-vpn",
+    "---Using the panel---",
+    "...guides",
+    "api",
+    "---Running Tunploy---",
+    "...maintenance",
+    "configuration",
+    "troubleshooting",
+    "development"
+  ]
+}

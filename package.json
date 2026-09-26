@@ -7,12 +7,15 @@
     "dev": "next dev",
     "start": "serve out",
     "types:check": "next typegen && tsc --noEmit",
-    "lint": "oxlint"
+    "lint": "oxlint",
+    "api:sync": "node scripts/sync-openapi.mjs",
+    "api:generate": "node scripts/sync-openapi.mjs --generate-only"
   },
   "dependencies": {
     "cn": "^0.3.0",
     "fumadocs-core": "16.15.14",
     "fumadocs-mdx": "15.4.5",
+    "fumadocs-openapi": "^12.0.3",
     "fumadocs-ui": "npm:@fumadocs/base-ui@16.15.14",
     "lucide-react": "^1.47.0",
     "next": "16.3.5",
@@ -25,10 +28,10 @@
     "@types/node": "^26.6.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "oxlint": "^1.83.0",
     "postcss": "^8.5.28",
     "serve": "^14.2.6",
     "tailwindcss": "^4.3.3",
-    "typescript": "^7.0.2",
-    "oxlint": "^1.83.0"
+    "typescript": "^7.0.2"
   }
 }

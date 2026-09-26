@@ -1,0 +1,14 @@
+{
+  "title": "Devices",
+  "pages": [
+    "listDevices",
+    "createDevice",
+    "getDevice",
+    "updateDevice",
+    "deleteDevice",
+    "getDeviceConfig",
+    "getDeviceUsage",
+    "resetDeviceUsage",
+    "moveDevice"
+  ]
+}

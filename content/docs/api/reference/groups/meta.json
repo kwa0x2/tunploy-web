@@ -1,0 +1,10 @@
+{
+  "title": "Groups",
+  "description": "Every device with the same `external_id`, such as one customer's phone and laptop.",
+  "pages": [
+    "getGroup",
+    "updateGroup",
+    "deleteGroup",
+    "resetGroupUsage"
+  ]
+}

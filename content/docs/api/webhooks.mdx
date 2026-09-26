@@ -1,0 +1,91 @@
+---
+title: Webhooks
+description: Let Tunploy post each event to your program as it happens, signed so you can trust it.
+---
+
+Instead of polling [`/api/v1/events`](/docs/api/reference/events/listEvents), let Tunploy post each event to your program as it happens.
+
+## Add a webhook
+
+Add an endpoint under **Settings → Webhooks**, or with a `webhooks:write` key:
+
+```sh
+curl https://vpn.example.com/api/v1/webhooks \
+  -H "Authorization: Bearer tp_..." \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://billing.example.com/hooks/tunploy", "events": ["device.limit_reached", "device.expired", "server.down"]}'
+```
+
+The reply holds a `secret` (`whsec_...`), shown this once. `events` takes any device, server or node event kind from the events API, or `["*"]` for all of them. **Send test** in the panel (or [`POST /api/v1/webhooks/{id}/ping`](/docs/api/reference/webhooks/pingWebhook)) posts a `ping` event.
+
+## What a delivery looks like
+
+Each delivery is a `POST` whose JSON body is the event, exactly as `GET /api/v1/events` lists it:
+
+```json
+{
+  "id": 812,
+  "kind": "device.limit_reached",
+  "created_at": "2026-09-26T10:15:04Z",
+  "server_id": 1,
+  "server_name": "Frankfurt",
+  "device_id": 42,
+  "device_name": "user_123-9f2c1a",
+  "detail": "used 50 GB of 50 GB in total"
+}
+```
+
+with these headers:
+
+| Header | |
+| --- | --- |
+| `X-Tunploy-Event` | the event kind |
+| `X-Tunploy-Delivery` | the delivery's ID, the same on every retry |
+| `X-Tunploy-Signature` | `t=<unix time>,v1=<hex>`: HMAC-SHA256 of `<t>.<raw body>`, keyed with the secret |
+
+## Verify the signature
+
+Check the signature before trusting the body, and turn away old timestamps so a captured request cannot be played back later. Compute it over the **raw** request body, before any JSON parsing.
+
+<Tabs items={['Node.js', 'Python']}>
+<Tab value="Node.js">
+
+```js
+import crypto from "node:crypto"
+
+function verify(secret, header, rawBody) {
+  const { t, v1 } = Object.fromEntries(header.split(",").map((part) => part.split("=")))
+  if (Math.abs(Date.now() / 1000 - Number(t)) > 300) return false
+  const expected = crypto.createHmac("sha256", secret).update(`${t}.${rawBody}`).digest("hex")
+  return v1.length === expected.length && crypto.timingSafeEqual(Buffer.from(v1), Buffer.from(expected))
+}
+```
+
+</Tab>
+<Tab value="Python">
+
+```python
+import hashlib, hmac, time
+
+def verify(secret: str, header: str, raw_body: bytes) -> bool:
+    parts = dict(p.split("=", 1) for p in header.split(","))
+    if abs(time.time() - int(parts["t"])) > 300:
+        return False
+    expected = hmac.new(secret.encode(), parts["t"].encode() + b"." + raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, parts["v1"])
+```
+
+</Tab>
+</Tabs>
+
+## Retries
+
+Answer with any `2xx` within 10 seconds. A different status, a timeout or a redirect (redirects are not followed) counts as a failure, and the delivery is tried again after 1 and 5 minutes, 30 minutes, 2, 6 and 12 hours before Tunploy gives up.
+
+Deliveries wait in the database, so a panel restart does not lose them.
+
+<Callout title="Handle repeats">
+  Because of retries, the same event can arrive twice and out of order. Use the event `id` to skip ones you have seen.
+</Callout>
+
+Every delivery, with its status code or error, is listed under **Deliveries** for 30 days, where you can also send one again ([`POST …/deliveries/{deliveryID}/retry`](/docs/api/reference/webhooks/retryDelivery)). Turning a webhook off drops what it had waiting.

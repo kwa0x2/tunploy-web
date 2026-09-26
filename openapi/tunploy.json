@@ -1,0 +1,3128 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Tunploy API",
+    "version": "1.2",
+    "description": "Manage devices and servers on your Tunploy VPN from your own programs, and hear about what happens to them.\n\nSend an API key from Settings → API keys as `Authorization: Bearer tp_…`. Each key only does what its scopes allow. Requests are limited to 10 a second per key, with bursts up to 60. Keep keys on your server, never in an app.\n\nErrors always look like `{\"error\": {\"code\": \"…\", \"message\": \"…\", \"fields\": {…}}}`; `fields` names the inputs a validation error is about."
+  },
+  "servers": [
+    {
+      "url": "https://{panel}/api/v1",
+      "description": "Your Tunploy panel",
+      "variables": {
+        "panel": {
+          "default": "vpn.example.com",
+          "description": "The address you open the panel at"
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "name": "Devices"
+    },
+    {
+      "name": "Groups",
+      "description": "Every device with the same `external_id`, such as one customer's phone and laptop."
+    },
+    {
+      "name": "Servers"
+    },
+    {
+      "name": "Events"
+    },
+    {
+      "name": "Webhooks"
+    }
+  ],
+  "paths": {
+    "/devices": {
+      "get": {
+        "operationId": "listDevices",
+        "summary": "List devices",
+        "tags": [
+          "Devices"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "devices:read",
+        "responses": {
+          "200": {
+            "description": "Oldest first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevicePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Needs the `devices:read` scope.",
+        "parameters": [
+          {
+            "name": "server_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Only this server's devices."
+          },
+          {
+            "name": "external_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Only devices with this external_id."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/DeviceStatus"
+            },
+            "description": "Only devices in this state."
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Cursor: the last ID of the previous page."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "description": "Page size."
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createDevice",
+        "summary": "Create a device",
+        "tags": [
+          "Devices"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "devices:write",
+        "responses": {
+          "201": {
+            "description": "The device, with its config.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Device"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "`server_full`: no free addresses left; `no_server_available`: `server_id: \"auto\"` found no running server with room; or an Idempotency-Key is still in use.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Send `public_key` to keep the private key on the client; the config then has no PrivateKey line. Send `server_id: \"auto\"` (with `country` or `city` if you like) to let the panel pick the emptiest running server.\n\nNeeds the `devices:write` scope.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "A retry with the same key within 24 hours gets the first reply back (with `Idempotent-Replayed: true`) instead of running again."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "server_id"
+                ],
+                "properties": {
+                  "server_id": {
+                    "oneOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "const": "auto"
+                      }
+                    ],
+                    "description": "A server's ID, or `\"auto\"` for the running server with the fewest devices that still has room, narrowed by `country` and `city`."
+                  },
+                  "country": {
+                    "type": "string",
+                    "description": "Only with `server_id: \"auto\"`: an ISO 3166-1 alpha-2 code such as `DE`."
+                  },
+                  "city": {
+                    "type": "string",
+                    "description": "Only with `server_id: \"auto\"`."
+                  },
+                  "public_key": {
+                    "type": "string",
+                    "description": "A WireGuard public key the client made."
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "Unique per server. Made up from external_id when left out."
+                  },
+                  "external_id": {
+                    "type": "string",
+                    "maxLength": 255
+                  },
+                  "metadata": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": true,
+                    "description": "Any JSON object up to 4 KB; null clears it."
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "data_limit": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "limit_period": {
+                    "$ref": "#/components/schemas/LimitPeriod"
+                  },
+                  "expires_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time",
+                    "description": "null clears it."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/devices/{id}": {
+      "get": {
+        "operationId": "getDevice",
+        "summary": "Get a device",
+        "tags": [
+          "Devices"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "devices:read",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Device"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Needs the `devices:read` scope.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Device ID."
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "updateDevice",
+        "summary": "Change a device",
+        "tags": [
+          "Devices"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "devices:write",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Device"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "description": "`apply_failed`: saved, but the running tunnel could not be updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Only the fields sent change. To put the device on another server use `POST /devices/{id}/move`; the public key cannot change.\n\nNeeds the `devices:write` scope.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Device ID."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "Unique per server. Made up from external_id when left out."
+                  },
+                  "external_id": {
+                    "type": "string",
+                    "maxLength": 255
+                  },
+                  "metadata": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": true,
+                    "description": "Any JSON object up to 4 KB; null clears it."
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "data_limit": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "limit_period": {
+                    "$ref": "#/components/schemas/LimitPeriod"
+                  },
+                  "expires_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time",
+                    "description": "null clears it."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteDevice",
+        "summary": "Delete a device",
+        "tags": [
+          "Devices"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "devices:write",
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Needs the `devices:write` scope.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Device ID."
+          }
+        ]
+      }
+    },
+    "/devices/{id}/config": {
+      "get": {
+        "operationId": "getDeviceConfig",
+        "summary": "Get a device's config",
+        "tags": [
+          "Devices"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "devices:read",
+        "responses": {
+          "200": {
+            "description": "The config file, or a QR code of it.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "image/png"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "`client_key`: no QR code for a device whose private key the panel never had.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Needs the `devices:read` scope.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Device ID."
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "conf",
+                "qr"
+              ],
+              "default": "conf"
+            },
+            "description": ""
+          }
+        ]
+      }
+    },
+    "/devices/{id}/usage": {
+      "get": {
+        "operationId": "getDeviceUsage",
+        "summary": "Get a device's usage",
+        "tags": [
+          "Devices"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "devices:read",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usage"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Needs the `devices:read` scope.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Device ID."
+          }
+        ]
+      }
+    },
+    "/devices/{id}/usage/reset": {
+      "post": {
+        "operationId": "resetDeviceUsage",
+        "summary": "Reset a device's usage",
+        "tags": [
+          "Devices"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "devices:write",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Device"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "description": "`apply_failed`: reset, but the running tunnel could not be updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Starts the count toward the data limit again from now; a device blocked by its limit may connect at once. For plans that renew on their own date: use `limit_period: total` and reset on each renewal. History stays in the usage figures.\n\nNeeds the `devices:write` scope.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Device ID."
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "A retry with the same key within 24 hours gets the first reply back (with `Idempotent-Replayed: true`) instead of running again."
+          }
+        ]
+      }
+    },
+    "/devices/{id}/move": {
+      "post": {
+        "operationId": "moveDevice",
+        "summary": "Move a device to another server",
+        "tags": [
+          "Devices"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "devices:write",
+        "responses": {
+          "200": {
+            "description": "The device, with its new config.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Device"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "`no_server_available`: `\"auto\"` found no running server with free addresses there; `server_full`: the chosen server has none left.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "description": "`apply_failed`: moved, but a running tunnel could not be updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "The device keeps its ID, keys, name, limits and usage history. It gets an address on the new server, and the server's endpoint and key change, so the client needs the new `config` from the reply. With `server_id: \"auto\"` the server it is on now is never picked.\n\nNeeds the `devices:write` scope.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Device ID."
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "A retry with the same key within 24 hours gets the first reply back (with `Idempotent-Replayed: true`) instead of running again."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "server_id"
+                ],
+                "properties": {
+                  "server_id": {
+                    "oneOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "const": "auto"
+                      }
+                    ],
+                    "description": "A server's ID, or `\"auto\"` for the running server with the fewest devices that still has room, narrowed by `country` and `city`."
+                  },
+                  "country": {
+                    "type": "string",
+                    "description": "Only with `server_id: \"auto\"`: an ISO 3166-1 alpha-2 code such as `DE`."
+                  },
+                  "city": {
+                    "type": "string",
+                    "description": "Only with `server_id: \"auto\"`."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/groups/{external_id}": {
+      "get": {
+        "operationId": "getGroup",
+        "summary": "Get a group",
+        "tags": [
+          "Groups"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "devices:read",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Every device with this `external_id`, oldest first, and their usage this month together.\n\nNeeds the `devices:read` scope.",
+        "parameters": [
+          {
+            "name": "external_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "The external_id the devices share, URL-encoded."
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "updateGroup",
+        "summary": "Change every device in a group",
+        "tags": [
+          "Groups"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "devices:write",
+        "responses": {
+          "200": {
+            "description": "The group after the change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "description": "`apply_failed`: saved, but a running tunnel could not be updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Sets the fields sent on every device in the group: renew a plan with `expires_at`, or end it with `enabled: false`. Every device is checked first, so a value that is wrong for one changes none.\n\nNeeds the `devices:write` scope.",
+        "parameters": [
+          {
+            "name": "external_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "The external_id the devices share, URL-encoded."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "metadata": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": true,
+                    "description": "Any JSON object up to 4 KB; null clears it."
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "data_limit": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "limit_period": {
+                    "$ref": "#/components/schemas/LimitPeriod"
+                  },
+                  "expires_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time",
+                    "description": "null clears it."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteGroup",
+        "summary": "Delete every device in a group",
+        "tags": [
+          "Groups"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "devices:write",
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "description": "`apply_failed`: deleted, but a running tunnel could not be updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Needs the `devices:write` scope.",
+        "parameters": [
+          {
+            "name": "external_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "The external_id the devices share, URL-encoded."
+          }
+        ]
+      }
+    },
+    "/groups/{external_id}/usage/reset": {
+      "post": {
+        "operationId": "resetGroupUsage",
+        "summary": "Reset usage for a group",
+        "tags": [
+          "Groups"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "devices:write",
+        "responses": {
+          "200": {
+            "description": "The group after the reset.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "description": "`apply_failed`: reset, but a running tunnel could not be updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Resets every device in the group, as `POST /devices/{id}/usage/reset` does for one.\n\nNeeds the `devices:write` scope.",
+        "parameters": [
+          {
+            "name": "external_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "The external_id the devices share, URL-encoded."
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "A retry with the same key within 24 hours gets the first reply back (with `Idempotent-Replayed: true`) instead of running again."
+          }
+        ]
+      }
+    },
+    "/servers": {
+      "get": {
+        "operationId": "listServers",
+        "summary": "List servers",
+        "tags": [
+          "Servers"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "servers:read",
+        "responses": {
+          "200": {
+            "description": "All servers, has_more is always false.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServerPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Needs the `servers:read` scope.",
+        "parameters": [
+          {
+            "name": "country",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Only servers in this country (ISO code)."
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createServer",
+        "summary": "Create a server",
+        "tags": [
+          "Servers"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "servers:write",
+        "responses": {
+          "201": {
+            "description": "The running server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Server"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "An Idempotency-Key is still in use.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "description": "`deploy_failed`: Docker could not start the server; nothing was kept.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`node_offline` or `docker_unavailable`: the machine cannot be reached.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Deploys the server before it answers, which can take a while when the image is new to the machine. A 201 is a running server; a failed deploy leaves nothing behind.\n\nNeeds the `servers:write` scope.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "A retry with the same key within 24 hours gets the first reply back (with `Idempotent-Replayed: true`) instead of running again."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "Unique across the panel."
+                  },
+                  "node_id": {
+                    "type": "integer",
+                    "description": "The machine to run on, from `GET /nodes`; 0, the default, is the panel's own."
+                  },
+                  "address": {
+                    "type": "string",
+                    "description": "The server's address and subnet, such as `10.20.0.1/22`, between /16 and /30. Defaults to a free /24.",
+                    "examples": [
+                      "10.8.0.1/24"
+                    ]
+                  },
+                  "max_devices": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65533,
+                    "description": "Instead of `address`: the smallest free subnet, /24 or larger, that holds this many devices."
+                  },
+                  "endpoint": {
+                    "type": "string",
+                    "description": "Host clients dial, without a port. Defaults to the panel's public host, or the node's."
+                  },
+                  "listen_port": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535,
+                    "description": "UDP; unique per machine. Defaults to the next free one from 51820."
+                  },
+                  "dns": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "mtu": {
+                    "type": "integer",
+                    "description": "1280 to 1500, or 0 for the default."
+                  },
+                  "persistent_keepalive": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 65535
+                  },
+                  "client_allowed_ips": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "What clients send through the tunnel; defaults to everything."
+                  },
+                  "country": {
+                    "type": "string",
+                    "description": "ISO 3166-1 alpha-2. Guessed from the endpoint on create when left out."
+                  },
+                  "city": {
+                    "type": "string",
+                    "maxLength": 64
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/servers/{id}": {
+      "get": {
+        "operationId": "getServer",
+        "summary": "Get a server",
+        "tags": [
+          "Servers"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "servers:read",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Server"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Needs the `servers:read` scope.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Server ID."
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "updateServer",
+        "summary": "Change a server",
+        "tags": [
+          "Servers"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "servers:write",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Server"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "description": "`deploy_failed`: saved, but redeploying failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Only the fields sent change. The address and node are fixed. A new `listen_port` or `mtu` recreates the container, which drops connections for a moment; the rest apply to configs issued from now on.\n\nNeeds the `servers:write` scope.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Server ID."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "Unique across the panel."
+                  },
+                  "endpoint": {
+                    "type": "string",
+                    "description": "Host clients dial, without a port. Defaults to the panel's public host, or the node's."
+                  },
+                  "listen_port": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535,
+                    "description": "UDP; unique per machine. Defaults to the next free one from 51820."
+                  },
+                  "dns": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "mtu": {
+                    "type": "integer",
+                    "description": "1280 to 1500, or 0 for the default."
+                  },
+                  "persistent_keepalive": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 65535
+                  },
+                  "client_allowed_ips": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "What clients send through the tunnel; defaults to everything."
+                  },
+                  "country": {
+                    "type": "string",
+                    "description": "ISO 3166-1 alpha-2. Guessed from the endpoint on create when left out."
+                  },
+                  "city": {
+                    "type": "string",
+                    "maxLength": 64
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteServer",
+        "summary": "Delete a server",
+        "tags": [
+          "Servers"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "servers:write",
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "`server_not_empty`: the server has devices and `force` is not `true`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Removes the container and every device on it. A server that has devices needs `?force=true`, so a stale ID cannot cut off users by accident; move them with `POST /devices/{id}/move` first if they should keep working.\n\nNeeds the `servers:write` scope.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Server ID."
+          },
+          {
+            "name": "force",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Delete the server's devices with it."
+          }
+        ]
+      }
+    },
+    "/nodes": {
+      "get": {
+        "operationId": "listNodes",
+        "summary": "List nodes",
+        "tags": [
+          "Servers"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "servers:read",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodePage"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "The machines servers can run on. The panel's own is first, with ID 0. Nodes are added in the panel, since that takes SSH access.\n\nNeeds the `servers:read` scope."
+      }
+    },
+    "/events": {
+      "get": {
+        "operationId": "listEvents",
+        "summary": "List events",
+        "tags": [
+          "Events"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "events:read",
+        "responses": {
+          "200": {
+            "description": "Oldest first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Devices, servers and nodes only; sign-ins and settings stay in the panel. Keep the last ID you saw and ask again with `after`. Events are kept for 90 days.\n\nNeeds the `events:read` scope.",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Only events with a larger ID."
+          },
+          {
+            "name": "server_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": ""
+          },
+          {
+            "name": "device_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": ""
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comma-separated kinds."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "description": "Page size."
+          }
+        ]
+      }
+    },
+    "/webhooks": {
+      "get": {
+        "operationId": "listWebhooks",
+        "summary": "List webhooks",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "webhooks:write",
+        "responses": {
+          "200": {
+            "description": "All webhooks, has_more is always false.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Needs the `webhooks:write` scope."
+      },
+      "post": {
+        "operationId": "createWebhook",
+        "summary": "Add a webhook",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "webhooks:write",
+        "responses": {
+          "201": {
+            "description": "The webhook with its signing secret, shown this once.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedWebhook"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "At most 20 webhooks.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Needs the `webhooks:write` scope.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "A retry with the same key within 24 hours gets the first reply back (with `Idempotent-Replayed: true`) instead of running again."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "maxLength": 2048,
+                    "description": "http or https, without a user name or password."
+                  },
+                  "events": {
+                    "type": "array",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/EventKind"
+                        },
+                        {
+                          "const": "*"
+                        }
+                      ]
+                    },
+                    "minItems": 1,
+                    "description": "Defaults to `[\"*\"]` on create."
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "enabled": {
+                    "type": "boolean",
+                    "description": "Turning a webhook off gives up on its pending deliveries."
+                  }
+                },
+                "required": [
+                  "url"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhooks/{id}": {
+      "get": {
+        "operationId": "getWebhook",
+        "summary": "Get a webhook",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "webhooks:write",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Webhook"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Needs the `webhooks:write` scope.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Webhook ID."
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "updateWebhook",
+        "summary": "Change a webhook",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "webhooks:write",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Webhook"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Needs the `webhooks:write` scope.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Webhook ID."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "maxLength": 2048,
+                    "description": "http or https, without a user name or password."
+                  },
+                  "events": {
+                    "type": "array",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/EventKind"
+                        },
+                        {
+                          "const": "*"
+                        }
+                      ]
+                    },
+                    "minItems": 1,
+                    "description": "Defaults to `[\"*\"]` on create."
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "enabled": {
+                    "type": "boolean",
+                    "description": "Turning a webhook off gives up on its pending deliveries."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteWebhook",
+        "summary": "Delete a webhook",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "webhooks:write",
+        "responses": {
+          "204": {
+            "description": "Deleted, with its deliveries."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Needs the `webhooks:write` scope.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Webhook ID."
+          }
+        ]
+      }
+    },
+    "/webhooks/{id}/ping": {
+      "post": {
+        "operationId": "pingWebhook",
+        "summary": "Send a test delivery",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "webhooks:write",
+        "responses": {
+          "202": {
+            "description": "Queued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Delivery"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "The webhook is turned off.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Sends an event of kind `ping`, whatever the webhook subscribes to.\n\nNeeds the `webhooks:write` scope.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Webhook ID."
+          }
+        ]
+      }
+    },
+    "/webhooks/{id}/deliveries": {
+      "get": {
+        "operationId": "listDeliveries",
+        "summary": "List deliveries",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "webhooks:write",
+        "responses": {
+          "200": {
+            "description": "Newest first; kept for 30 days.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Needs the `webhooks:write` scope.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Webhook ID."
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Cursor: the last ID of the previous page."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "description": "Page size."
+          }
+        ]
+      }
+    },
+    "/webhooks/{id}/deliveries/{deliveryID}/retry": {
+      "post": {
+        "operationId": "retryDelivery",
+        "summary": "Send a delivery again",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "x-scope": "webhooks:write",
+        "responses": {
+          "202": {
+            "description": "Queued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Delivery"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "The webhook is turned off.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        },
+        "description": "Needs the `webhooks:write` scope.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Webhook ID."
+          },
+          {
+            "name": "deliveryID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Delivery ID."
+          }
+        ]
+      }
+    }
+  },
+  "webhooks": {
+    "event": {
+      "post": {
+        "summary": "An event happened",
+        "description": "Posted to each webhook that subscribes to the event's kind. Check `X-Tunploy-Signature` before trusting the body: `t=<unix time>,v1=<hex>`, where v1 is HMAC-SHA256 over `<t>.<raw body>` keyed with the webhook's secret. Turn away timestamps more than a few minutes old.\n\nAnswer with a 2xx within 10 seconds. Anything else, a timeout or a redirect is tried again after 1 and 5 minutes, 30 minutes, 2, 6 and 12 hours, then given up. Deliveries can arrive out of order and more than once: use the event ID or X-Tunploy-Delivery to skip repeats.",
+        "parameters": [
+          {
+            "name": "X-Tunploy-Event",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The event kind, or `ping`."
+          },
+          {
+            "name": "X-Tunploy-Delivery",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Tunploy-Signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "examples": {
+              "sig": {
+                "value": "t=1700000000,v1=db12e0…"
+              }
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Event"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Any 2xx counts as delivered."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "apiKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "An API key: `tp_…`."
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "`invalid_request`: a query parameter or the body could not be read.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "error": {
+                "value": {
+                  "error": {
+                    "code": "invalid_request",
+                    "message": "…"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "`unauthorized`: no key, or it is unknown, revoked or expired.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "error": {
+                "value": {
+                  "error": {
+                    "code": "unauthorized",
+                    "message": "…"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "`missing_scope`: the key lacks the scope this needs.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "error": {
+                "value": {
+                  "error": {
+                    "code": "missing_scope",
+                    "message": "…"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "`not_found`.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "error": {
+                "value": {
+                  "error": {
+                    "code": "not_found",
+                    "message": "…"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Invalid": {
+        "description": "`validation_failed`: `fields` says what is wrong with which input.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "error": {
+                "value": {
+                  "error": {
+                    "code": "validation_failed",
+                    "message": "…"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "`rate_limited`: wait for Retry-After seconds.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "error": {
+                "value": {
+                  "error": {
+                    "code": "rate_limited",
+                    "message": "…"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "fields": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Traffic": {
+        "type": "object",
+        "required": [
+          "rx_bytes",
+          "tx_bytes",
+          "total_bytes"
+        ],
+        "description": "Seen from the server: rx is what the device uploaded, tx what it downloaded.",
+        "properties": {
+          "rx_bytes": {
+            "type": "integer"
+          },
+          "tx_bytes": {
+            "type": "integer"
+          },
+          "total_bytes": {
+            "type": "integer"
+          }
+        }
+      },
+      "DeviceStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "disabled",
+          "expired",
+          "limit_reached"
+        ]
+      },
+      "LimitPeriod": {
+        "type": "string",
+        "enum": [
+          "monthly",
+          "total"
+        ],
+        "description": "monthly counts from the first of each month in the panel's time zone; total counts until a usage reset."
+      },
+      "Device": {
+        "type": "object",
+        "required": [
+          "id",
+          "server_id",
+          "name",
+          "external_id",
+          "metadata",
+          "address",
+          "public_key",
+          "client_key",
+          "enabled",
+          "status",
+          "online",
+          "last_handshake",
+          "data_limit",
+          "limit_period",
+          "period_usage",
+          "usage_reset_at",
+          "expires_at",
+          "month_usage",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "server_id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "external_id": {
+            "type": "string",
+            "description": "Your own ID for the device's owner. Not unique."
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "address": {
+            "type": "string",
+            "description": "The device's address inside the tunnel.",
+            "examples": [
+              "10.8.0.2"
+            ]
+          },
+          "public_key": {
+            "type": "string"
+          },
+          "client_key": {
+            "type": "boolean",
+            "description": "The client made the key pair; the panel never saw the private key."
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DeviceStatus"
+          },
+          "online": {
+            "type": "boolean",
+            "description": "As of the panel's last look, at most ten seconds old."
+          },
+          "last_handshake": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "data_limit": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Bytes per limit period, both directions; 0 means no limit."
+          },
+          "limit_period": {
+            "$ref": "#/components/schemas/LimitPeriod"
+          },
+          "period_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Traffic"
+              }
+            ],
+            "description": "What counts toward data_limit: this month, or since the last usage reset."
+          },
+          "usage_reset_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "The last usage reset, if any."
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Access ends at this instant."
+          },
+          "month_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Traffic"
+              }
+            ],
+            "description": "The calendar month, whatever the limit period."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "config": {
+            "type": "string",
+            "description": "Only in the reply to a create: the WireGuard config. Holds the private key unless public_key was sent."
+          }
+        }
+      },
+      "DevicePage": {
+        "type": "object",
+        "required": [
+          "data",
+          "has_more"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Device"
+            }
+          },
+          "has_more": {
+            "type": "boolean",
+            "description": "More items follow; ask again with the last ID as the cursor."
+          }
+        }
+      },
+      "Group": {
+        "type": "object",
+        "required": [
+          "external_id",
+          "device_count",
+          "month_usage",
+          "devices"
+        ],
+        "properties": {
+          "external_id": {
+            "type": "string"
+          },
+          "device_count": {
+            "type": "integer"
+          },
+          "month_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Traffic"
+              }
+            ],
+            "description": "All the devices together, this calendar month."
+          },
+          "devices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Device"
+            }
+          }
+        }
+      },
+      "Usage": {
+        "type": "object",
+        "required": [
+          "month_usage",
+          "period_usage",
+          "data_limit",
+          "limit_period",
+          "usage_reset_at",
+          "daily",
+          "monthly"
+        ],
+        "properties": {
+          "month_usage": {
+            "$ref": "#/components/schemas/Traffic"
+          },
+          "period_usage": {
+            "$ref": "#/components/schemas/Traffic"
+          },
+          "data_limit": {
+            "type": "integer"
+          },
+          "limit_period": {
+            "$ref": "#/components/schemas/LimitPeriod"
+          },
+          "usage_reset_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "daily": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UsagePoint"
+            },
+            "description": "The last 30 days, oldest first."
+          },
+          "monthly": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UsagePoint"
+            },
+            "description": "The last 12 months, oldest first."
+          }
+        }
+      },
+      "UsagePoint": {
+        "type": "object",
+        "required": [
+          "start",
+          "rx_bytes",
+          "tx_bytes"
+        ],
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date",
+            "description": "First day of the day or month, in the panel's time zone."
+          },
+          "rx_bytes": {
+            "type": "integer"
+          },
+          "tx_bytes": {
+            "type": "integer"
+          }
+        }
+      },
+      "Server": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "node",
+          "country",
+          "city",
+          "status",
+          "endpoint",
+          "listen_port",
+          "public_key",
+          "address",
+          "subnet",
+          "dns",
+          "mtu",
+          "persistent_keepalive",
+          "client_allowed_ips",
+          "device_count",
+          "capacity",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "node": {
+            "type": "object",
+            "required": [
+              "id",
+              "name"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer",
+                "description": "0 is the panel's own machine."
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "country": {
+            "type": "string",
+            "description": "ISO 3166-1 alpha-2, or empty.",
+            "examples": [
+              "DE"
+            ]
+          },
+          "city": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "restarting",
+              "stopped",
+              "not_deployed",
+              "unknown"
+            ]
+          },
+          "endpoint": {
+            "type": "string",
+            "description": "Host clients dial; the port is listen_port."
+          },
+          "listen_port": {
+            "type": "integer"
+          },
+          "public_key": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string",
+            "description": "The server's own address in its subnet.",
+            "examples": [
+              "10.8.0.1/24"
+            ]
+          },
+          "subnet": {
+            "type": "string",
+            "examples": [
+              "10.8.0.0/24"
+            ]
+          },
+          "dns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mtu": {
+            "type": "integer",
+            "description": "0 means the default."
+          },
+          "persistent_keepalive": {
+            "type": "integer"
+          },
+          "client_allowed_ips": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "device_count": {
+            "type": "integer"
+          },
+          "capacity": {
+            "type": "integer",
+            "description": "How many devices fit; creating more fails with server_full."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ServerPage": {
+        "type": "object",
+        "required": [
+          "data",
+          "has_more"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Server"
+            }
+          },
+          "has_more": {
+            "type": "boolean",
+            "description": "More items follow; ask again with the last ID as the cursor."
+          }
+        }
+      },
+      "Node": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "host",
+          "status",
+          "server_count"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "0 is the panel's own machine."
+          },
+          "name": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "online",
+              "offline",
+              "connecting"
+            ]
+          },
+          "server_count": {
+            "type": "integer"
+          }
+        }
+      },
+      "NodePage": {
+        "type": "object",
+        "required": [
+          "data",
+          "has_more"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Node"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EventKind": {
+        "type": "string",
+        "enum": [
+          "device.created",
+          "device.deleted",
+          "device.renamed",
+          "device.moved",
+          "device.enabled",
+          "device.disabled",
+          "device.limits_changed",
+          "device.limit_reached",
+          "device.expired",
+          "device.unblocked",
+          "device.usage_reset",
+          "device.connected",
+          "device.disconnected",
+          "server.created",
+          "server.deploy_failed",
+          "server.updated",
+          "server.deleted",
+          "server.started",
+          "server.stopped",
+          "server.restarted",
+          "server.down",
+          "server.recovered",
+          "node.added",
+          "node.renamed",
+          "node.deleted",
+          "node.offline",
+          "node.online"
+        ]
+      },
+      "Event": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Increasing; 0 on a webhook ping."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EventKind"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "server_id": {
+            "type": "integer"
+          },
+          "server_name": {
+            "type": "string"
+          },
+          "device_id": {
+            "type": "integer"
+          },
+          "device_name": {
+            "type": "string"
+          },
+          "node_name": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string",
+            "description": "Where a device connected from."
+          },
+          "country": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string",
+            "description": "Human-readable extra, such as the usage when a limit is reached."
+          },
+          "actor": {
+            "type": "string",
+            "description": "`api:<key name>` when an API key caused it; empty for the admin or the panel itself."
+          }
+        }
+      },
+      "EventPage": {
+        "type": "object",
+        "required": [
+          "data",
+          "has_more"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          },
+          "has_more": {
+            "type": "boolean",
+            "description": "More items follow; ask again with the last ID as the cursor."
+          }
+        }
+      },
+      "Webhook": {
+        "type": "object",
+        "required": [
+          "id",
+          "url",
+          "events",
+          "description",
+          "enabled",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/EventKind"
+                },
+                {
+                  "const": "*"
+                }
+              ]
+            },
+            "description": "`[\"*\"]` for every kind."
+          },
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreatedWebhook": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Webhook"
+          },
+          {
+            "type": "object",
+            "required": [
+              "secret"
+            ],
+            "properties": {
+              "secret": {
+                "type": "string",
+                "description": "Signs every delivery. Shown this once.",
+                "examples": [
+                  "whsec_…"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "WebhookPage": {
+        "type": "object",
+        "required": [
+          "data",
+          "has_more"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Webhook"
+            }
+          },
+          "has_more": {
+            "type": "boolean",
+            "description": "More items follow; ask again with the last ID as the cursor."
+          }
+        }
+      },
+      "Delivery": {
+        "type": "object",
+        "required": [
+          "id",
+          "webhook_id",
+          "kind",
+          "payload",
+          "state",
+          "attempts",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Sent as X-Tunploy-Delivery; the same on every retry."
+          },
+          "webhook_id": {
+            "type": "integer"
+          },
+          "event_id": {
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/Event"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "succeeded",
+              "failed"
+            ]
+          },
+          "attempts": {
+            "type": "integer"
+          },
+          "next_attempt_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_attempt_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "response_status": {
+            "type": "integer"
+          },
+          "error": {
+            "type": "string"
+          },
+          "duration_ms": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DeliveryPage": {
+        "type": "object",
+        "required": [
+          "data",
+          "has_more"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Delivery"
+            }
+          },
+          "has_more": {
+            "type": "boolean",
+            "description": "More items follow; ask again with the last ID as the cursor."
+          }
+        }
+      }
+    }
+  }
+}

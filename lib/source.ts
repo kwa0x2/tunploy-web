@@ -2,6 +2,7 @@ import { llms, loader } from 'fumadocs-core/source';
 import { docsRoute } from './shared';
 import { defineDocs } from 'fumadocs-mdx/macro';
 import { metaSchema, pageSchema } from 'fumadocs-core/source/schema';
+import { openapi } from './openapi';
 
 const docs = defineDocs({
   dir: 'content/docs',
@@ -20,7 +21,7 @@ const docs = defineDocs({
 export const source = loader({
   baseUrl: docsRoute,
   source: docs.toFumadocsSource(),
-  plugins: [],
+  plugins: [openapi.loaderPlugin()],
 });
 
 export const docsLlms = llms(source, {

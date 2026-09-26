@@ -1,0 +1,11 @@
+{
+  "title": "Servers",
+  "pages": [
+    "listServers",
+    "createServer",
+    "getServer",
+    "updateServer",
+    "deleteServer",
+    "listNodes"
+  ]
+}

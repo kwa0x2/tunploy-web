@@ -1,0 +1,1376 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-09-26T12:00:00.000Z",
+  "__export_source": "tunploy",
+  "resources": [
+    {
+      "_id": "wrk_tunploy",
+      "_type": "workspace",
+      "parentId": null,
+      "name": "Tunploy API v1",
+      "description": "Tunploy's /api/v1 plus the panel endpoints that manage API keys. Start with Panel → Sign in, then Create API key, and paste the token into the environment's api_key. The full reference is at /api/v1/openapi.json.",
+      "scope": "collection"
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "parentId": "wrk_tunploy",
+      "name": "Base Environment",
+      "data": {},
+      "dataPropertyOrder": {},
+      "isPrivate": false
+    },
+    {
+      "_id": "env_local",
+      "_type": "environment",
+      "parentId": "env_base",
+      "name": "Local",
+      "color": "#f5c518",
+      "isPrivate": false,
+      "data": {
+        "base_url": "http://localhost:3000",
+        "admin_email": "admin@example.com",
+        "admin_password": "",
+        "api_key": "tp_paste_the_token_here",
+        "api_key_id": 1,
+        "server_id": 1,
+        "device_id": 1,
+        "external_id": "user_123",
+        "client_public_key": "paste the output of: wg genkey | wg pubkey",
+        "idempotency_key": "order-1042",
+        "last_event_id": 0,
+        "webhook_id": 1,
+        "delivery_id": 1,
+        "webhook_url": "https://example.com/hooks/tunploy"
+      },
+      "dataPropertyOrder": {
+        "&": [
+          "base_url",
+          "admin_email",
+          "admin_password",
+          "api_key",
+          "api_key_id",
+          "server_id",
+          "device_id",
+          "external_id",
+          "client_public_key",
+          "idempotency_key",
+          "last_event_id"
+        ]
+      }
+    },
+    {
+      "_id": "jar_tunploy",
+      "_type": "cookie_jar",
+      "parentId": "wrk_tunploy",
+      "name": "Default Jar",
+      "cookies": []
+    },
+    {
+      "_id": "fld_panel",
+      "_type": "request_group",
+      "parentId": "wrk_tunploy",
+      "name": "1. Panel (session cookie)",
+      "description": "Signed in with the admin account; Insomnia keeps the session cookie. These create and revoke API keys.",
+      "environment": {},
+      "metaSortKey": 0
+    },
+    {
+      "_id": "fld_servers",
+      "_type": "request_group",
+      "parentId": "wrk_tunploy",
+      "name": "2. Servers",
+      "description": "Needs servers:read.",
+      "environment": {},
+      "metaSortKey": 1
+    },
+    {
+      "_id": "fld_devices",
+      "_type": "request_group",
+      "parentId": "wrk_tunploy",
+      "name": "3. Devices",
+      "description": "devices:read for GET, devices:write for the rest. Set device_id in the environment to the device you work on.",
+      "environment": {},
+      "metaSortKey": 2
+    },
+    {
+      "_id": "fld_events",
+      "_type": "request_group",
+      "parentId": "wrk_tunploy",
+      "name": "4. Events",
+      "description": "Needs events:read. Oldest first: keep the last id you saw and ask again with after.",
+      "environment": {},
+      "metaSortKey": 3
+    },
+    {
+      "_id": "fld_edge",
+      "_type": "request_group",
+      "parentId": "wrk_tunploy",
+      "name": "5. Edge cases",
+      "description": "Requests that should fail, and the idempotency replay.",
+      "environment": {},
+      "metaSortKey": 4
+    },
+    {
+      "_id": "req_01",
+      "_type": "request",
+      "parentId": "fld_panel",
+      "name": "Sign in",
+      "description": "Set admin_email and admin_password in the environment. With two-factor sign-in on, add \"code\" to the body.",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.admin_email }}\",\n  \"password\": \"{{ _.admin_password }}\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 1,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_02",
+      "_type": "request",
+      "parentId": "fld_panel",
+      "name": "Create API key",
+      "description": "The reply's token is shown only this once: copy it into api_key. Add \"expires_at\" (RFC 3339) for a key that expires.",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/api-keys",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"insomnia\",\n  \"scopes\": [\n    \"devices:read\",\n    \"devices:write\",\n    \"servers:read\",\n    \"servers:write\",\n    \"events:read\",\n    \"webhooks:write\"\n  ]\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 2,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_03",
+      "_type": "request",
+      "parentId": "fld_panel",
+      "name": "List API keys",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/api-keys",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": 3,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_04",
+      "_type": "request",
+      "parentId": "fld_panel",
+      "name": "Revoke API key",
+      "description": "",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/api/api-keys/{{ _.api_key_id }}",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": 4,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_05",
+      "_type": "request",
+      "parentId": "fld_servers",
+      "name": "List servers",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/servers",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 5,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_06",
+      "_type": "request",
+      "parentId": "fld_servers",
+      "name": "Get server",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/servers/{{ _.server_id }}",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 6,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_07",
+      "_type": "request",
+      "parentId": "fld_devices",
+      "name": "List devices",
+      "description": "status: active, disabled, expired or limit_reached. Next page: after = the last id of this page, while has_more is true.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/devices",
+      "body": {},
+      "parameters": [
+        {
+          "name": "limit",
+          "value": "50",
+          "disabled": false
+        },
+        {
+          "name": "server_id",
+          "value": "{{ _.server_id }}",
+          "disabled": true
+        },
+        {
+          "name": "external_id",
+          "value": "{{ _.external_id }}",
+          "disabled": true
+        },
+        {
+          "name": "status",
+          "value": "active",
+          "disabled": true
+        },
+        {
+          "name": "after",
+          "value": "0",
+          "disabled": true
+        }
+      ],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 7,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_08",
+      "_type": "request",
+      "parentId": "fld_devices",
+      "name": "Create device (panel makes the keys)",
+      "description": "The reply includes config with the private key. name is optional; without it the panel makes one from external_id. data_limit is bytes per month (50 GB here).",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/devices",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"server_id\": {{ _.server_id }},\n  \"external_id\": \"{{ _.external_id }}\",\n  \"metadata\": {\n    \"plan\": \"pro\"\n  },\n  \"data_limit\": 53687091200,\n  \"expires_at\": \"2026-12-31T00:00:00Z\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 8,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_09",
+      "_type": "request",
+      "parentId": "fld_devices",
+      "name": "Create device (client's public key)",
+      "description": "The private key stays on the client: the returned config has no PrivateKey line, and client_key is true. A public key belongs to one device only: make a new pair for each send.",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/devices",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"server_id\": {{ _.server_id }},\n  \"external_id\": \"{{ _.external_id }}\",\n  \"public_key\": \"{{ _.client_public_key }}\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 9,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_10",
+      "_type": "request",
+      "parentId": "fld_devices",
+      "name": "Get device",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/devices/{{ _.device_id }}",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 10,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_11",
+      "_type": "request",
+      "parentId": "fld_devices",
+      "name": "Update device",
+      "description": "Only the fields you send change. metadata is replaced, not merged.",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/api/v1/devices/{{ _.device_id }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Alice's phone\",\n  \"data_limit\": 107374182400,\n  \"expires_at\": \"2027-01-31T00:00:00Z\",\n  \"metadata\": {\n    \"plan\": \"business\"\n  }\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 11,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_12",
+      "_type": "request",
+      "parentId": "fld_devices",
+      "name": "Disable device",
+      "description": "",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/api/v1/devices/{{ _.device_id }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"enabled\": false\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 12,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_13",
+      "_type": "request",
+      "parentId": "fld_devices",
+      "name": "Enable device",
+      "description": "",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/api/v1/devices/{{ _.device_id }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"enabled\": true\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 13,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_14",
+      "_type": "request",
+      "parentId": "fld_devices",
+      "name": "Clear expiry and metadata",
+      "description": "",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/api/v1/devices/{{ _.device_id }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"expires_at\": null,\n  \"metadata\": null\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 14,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_15",
+      "_type": "request",
+      "parentId": "fld_devices",
+      "name": "Config (.conf)",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/devices/{{ _.device_id }}/config",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 15,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_16",
+      "_type": "request",
+      "parentId": "fld_devices",
+      "name": "Config (QR code PNG)",
+      "description": "409 client_key for a device that holds its own private key.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/devices/{{ _.device_id }}/config",
+      "body": {},
+      "parameters": [
+        {
+          "name": "format",
+          "value": "qr",
+          "disabled": false
+        }
+      ],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 16,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_17",
+      "_type": "request",
+      "parentId": "fld_devices",
+      "name": "Usage",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/devices/{{ _.device_id }}/usage",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 17,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_18",
+      "_type": "request",
+      "parentId": "fld_devices",
+      "name": "Delete device",
+      "description": "",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/api/v1/devices/{{ _.device_id }}",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 18,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_19",
+      "_type": "request",
+      "parentId": "fld_events",
+      "name": "List events",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/events",
+      "body": {},
+      "parameters": [
+        {
+          "name": "limit",
+          "value": "50",
+          "disabled": false
+        },
+        {
+          "name": "kind",
+          "value": "device.connected,device.limit_reached",
+          "disabled": true
+        },
+        {
+          "name": "server_id",
+          "value": "{{ _.server_id }}",
+          "disabled": true
+        },
+        {
+          "name": "device_id",
+          "value": "{{ _.device_id }}",
+          "disabled": true
+        }
+      ],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 19,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_20",
+      "_type": "request",
+      "parentId": "fld_events",
+      "name": "Poll new events",
+      "description": "Set last_event_id to the last id you saw.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/events",
+      "body": {},
+      "parameters": [
+        {
+          "name": "after",
+          "value": "{{ _.last_event_id }}",
+          "disabled": false
+        }
+      ],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 20,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_21",
+      "_type": "request",
+      "parentId": "fld_edge",
+      "name": "No API key → 401",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/servers",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": 21,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_22",
+      "_type": "request",
+      "parentId": "fld_edge",
+      "name": "Idempotent create (send twice)",
+      "description": "The second send returns the same device with the header Idempotent-Replayed: true. Change idempotency_key to make another.",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/devices",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"server_id\": {{ _.server_id }},\n  \"external_id\": \"order-test\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{{ _.idempotency_key }}"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 22,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_23",
+      "_type": "request",
+      "parentId": "fld_edge",
+      "name": "Same Idempotency-Key, other body → 422",
+      "description": "Send after the request above: idempotency_key_reused.",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/devices",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"server_id\": {{ _.server_id }},\n  \"external_id\": \"something-else\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{{ _.idempotency_key }}"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 23,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_24",
+      "_type": "request",
+      "parentId": "fld_edge",
+      "name": "Invalid fields → 422",
+      "description": "Every bad field comes back under error.fields.",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/devices",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"server_id\": {{ _.server_id }},\n  \"data_limit\": -1,\n  \"metadata\": [1, 2]\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 24,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_25",
+      "_type": "request",
+      "parentId": "fld_edge",
+      "name": "Change server → 422",
+      "description": "",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/api/v1/devices/{{ _.device_id }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"server_id\": 999\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 25,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_26",
+      "_type": "request",
+      "parentId": "fld_edge",
+      "name": "Unknown status → 400",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/devices",
+      "body": {},
+      "parameters": [
+        {
+          "name": "status",
+          "value": "gone",
+          "disabled": false
+        }
+      ],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 26,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_27",
+      "_type": "request",
+      "parentId": "fld_edge",
+      "name": "Unknown endpoint → 404",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/nope",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 27,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "fld_webhooks",
+      "_type": "request_group",
+      "parentId": "wrk_tunploy",
+      "name": "6. Webhooks",
+      "description": "Needs webhooks:write. Set webhook_url to something you can watch, such as a webhook.site address, and webhook_id to the created webhook.",
+      "environment": {},
+      "metaSortKey": 5
+    },
+    {
+      "_id": "req_28",
+      "_type": "request",
+      "parentId": "fld_devices",
+      "name": "Reset usage",
+      "description": "Starts the count toward the data limit again. With limit_period total, call this on each renewal.",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/devices/{{ _.device_id }}/usage/reset",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 28,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_29",
+      "_type": "request",
+      "parentId": "fld_devices",
+      "name": "Switch to a total limit",
+      "description": "",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/api/v1/devices/{{ _.device_id }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"data_limit\": 53687091200,\n  \"limit_period\": \"total\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 29,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_30",
+      "_type": "request",
+      "parentId": "fld_servers",
+      "name": "Servers in one country",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/servers?country=DE",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 30,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_31",
+      "_type": "request",
+      "parentId": "fld_webhooks",
+      "name": "Add webhook",
+      "description": "The reply's secret is shown only this once.",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/webhooks",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"url\": \"{{ _.webhook_url }}\",\n  \"events\": [\n    \"device.limit_reached\",\n    \"device.expired\",\n    \"device.usage_reset\",\n    \"server.down\"\n  ]\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 31,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_32",
+      "_type": "request",
+      "parentId": "fld_webhooks",
+      "name": "List webhooks",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/webhooks",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 32,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_33",
+      "_type": "request",
+      "parentId": "fld_webhooks",
+      "name": "Get webhook",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/webhooks/{{ _.webhook_id }}",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 33,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_34",
+      "_type": "request",
+      "parentId": "fld_webhooks",
+      "name": "Subscribe to everything",
+      "description": "",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/api/v1/webhooks/{{ _.webhook_id }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"events\": [\n    \"*\"\n  ]\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 34,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_35",
+      "_type": "request",
+      "parentId": "fld_webhooks",
+      "name": "Turn off",
+      "description": "Drops the deliveries still waiting.",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/api/v1/webhooks/{{ _.webhook_id }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"enabled\": false\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 35,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_36",
+      "_type": "request",
+      "parentId": "fld_webhooks",
+      "name": "Send test",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/webhooks/{{ _.webhook_id }}/ping",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 36,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_37",
+      "_type": "request",
+      "parentId": "fld_webhooks",
+      "name": "Deliveries",
+      "description": "",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/webhooks/{{ _.webhook_id }}/deliveries",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 37,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_38",
+      "_type": "request",
+      "parentId": "fld_webhooks",
+      "name": "Send a delivery again",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/webhooks/{{ _.webhook_id }}/deliveries/{{ _.delivery_id }}/retry",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 38,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_39",
+      "_type": "request",
+      "parentId": "fld_webhooks",
+      "name": "Delete webhook",
+      "description": "",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/api/v1/webhooks/{{ _.webhook_id }}",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 39,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_40",
+      "_type": "request",
+      "parentId": "wrk_tunploy",
+      "name": "OpenAPI description",
+      "description": "Public: no key needed.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/openapi.json",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": 40,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "fld_groups",
+      "_type": "request_group",
+      "parentId": "wrk_tunploy",
+      "name": "7. Groups",
+      "description": "A group is every device with the same external_id, such as one customer's phone and laptop. Set external_id in the environment.",
+      "environment": {},
+      "metaSortKey": 6
+    },
+    {
+      "_id": "req_41",
+      "_type": "request",
+      "parentId": "fld_servers",
+      "name": "Create server (sized for 1000 devices)",
+      "description": "Needs servers:write. Deploys before it answers; the reply is the running server. max_devices picks the smallest free subnet that fits (a /22 here); send address instead to choose it yourself.",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/servers",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Tokyo\",\n  \"country\": \"JP\",\n  \"city\": \"Tokyo\",\n  \"max_devices\": 1000\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 41,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_42",
+      "_type": "request",
+      "parentId": "fld_servers",
+      "name": "Update server",
+      "description": "A new listen_port or mtu recreates the container.",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/api/v1/servers/{{ _.server_id }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"city\": \"Shibuya\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 42,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_43",
+      "_type": "request",
+      "parentId": "fld_servers",
+      "name": "Delete server with its devices",
+      "description": "Without force=true a server that still has devices answers 409 server_not_empty.",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/api/v1/servers/{{ _.server_id }}?force=true",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 43,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_44",
+      "_type": "request",
+      "parentId": "fld_servers",
+      "name": "List nodes",
+      "description": "The machines node_id can name when creating a server. The panel's own is ID 0.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/nodes",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 44,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_45",
+      "_type": "request",
+      "parentId": "fld_devices",
+      "name": "Create device on the emptiest server in a country",
+      "description": "Picks the running server in Germany with the fewest devices that still has room; 409 no_server_available when there is none.",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/devices",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"server_id\": \"auto\",\n  \"country\": \"DE\",\n  \"external_id\": \"user_123\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 45,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_46",
+      "_type": "request",
+      "parentId": "fld_devices",
+      "name": "Move device",
+      "description": "Keeps the ID, keys, limits and usage. The reply has the new config; the old one stops working.",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/devices/{{ _.device_id }}/move",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"server_id\": \"auto\",\n  \"country\": \"NL\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 46,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_47",
+      "_type": "request",
+      "parentId": "fld_groups",
+      "name": "Get group",
+      "description": "Every device with this external_id, and their usage this month together.",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/groups/{{ _.external_id }}",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 47,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_48",
+      "_type": "request",
+      "parentId": "fld_groups",
+      "name": "Renew every device in a group",
+      "description": "Checked for every device before any is saved.",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/api/v1/groups/{{ _.external_id }}",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"enabled\": true,\n  \"expires_at\": \"2026-12-31T00:00:00Z\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 48,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_49",
+      "_type": "request",
+      "parentId": "fld_groups",
+      "name": "Reset usage for a group",
+      "description": "",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/groups/{{ _.external_id }}/usage/reset",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 49,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    },
+    {
+      "_id": "req_50",
+      "_type": "request",
+      "parentId": "fld_groups",
+      "name": "Delete every device in a group",
+      "description": "",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/api/v1/groups/{{ _.external_id }}",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.api_key }}",
+        "prefix": "Bearer"
+      },
+      "metaSortKey": 50,
+      "settingSendCookies": true,
+      "settingStoreCookies": true
+    }
+  ]
+}

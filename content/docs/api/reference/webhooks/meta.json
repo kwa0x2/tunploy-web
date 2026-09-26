@@ -1,0 +1,14 @@
+{
+  "title": "Webhooks",
+  "pages": [
+    "listWebhooks",
+    "createWebhook",
+    "getWebhook",
+    "updateWebhook",
+    "deleteWebhook",
+    "pingWebhook",
+    "listDeliveries",
+    "retryDelivery",
+    "delivery"
+  ]
+}

@@ -359,9 +359,11 @@ function Features() {
 
 const scopes = [
   ['devices:read', 'list devices, read their config and usage'],
-  ['devices:write', 'create, change, turn off and delete devices'],
-  ['servers:read', 'list servers and how many devices still fit'],
+  ['devices:write', 'create, change, move and delete devices'],
+  ['servers:read', 'list servers, nodes and free capacity'],
+  ['servers:write', 'create, change and delete servers'],
   ['events:read', 'read device, server and node events'],
+  ['webhooks:write', 'get events pushed to you, signed'],
 ];
 
 function Api() {
@@ -375,8 +377,9 @@ function Api() {
           </h2>
           <p className="mt-4 text-fd-muted-foreground text-pretty sm:text-lg">
             A site that sells VPN access, a Telegram bot, an HR tool that gives new staff a VPN:
-            anything can manage devices through <code className="font-mono text-[0.9em]">/api/v1</code>{' '}
-            with a key you scope in the panel.
+            anything can manage devices and servers through{' '}
+            <code className="font-mono text-[0.9em]">/api/v1</code> with a key you scope in the panel,
+            and hear about limits and outages through signed webhooks.
           </p>
           <ul className="mt-8 space-y-3">
             {scopes.map(([scope, text]) => (

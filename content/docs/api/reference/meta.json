@@ -1,0 +1,10 @@
+{
+  "title": "Reference",
+  "pages": [
+    "devices",
+    "groups",
+    "servers",
+    "events",
+    "webhooks"
+  ]
+}
